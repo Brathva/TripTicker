@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Desert Odyssey 🚗</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body, #root { height: 100%; width: 100%; overflow: hidden; background: #0B0D12; }
+  input[type=range] { -webkit-appearance: none; appearance: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; }
+  ::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const STOPS = [
+  { id:"paris",    name:"Paris Las Vegas",    short:"PARIS LV",       icon:"🗼", lat:36.1125,lng:-115.1711, arrive:null,      depart:"08:00 AM", note:"Start your engines",       pct:0,   type:"start" },
+  { id:"bryce",    name:"Bryce Canyon",       short:"BRYCE CANYON",   icon:"🏜️", lat:37.593, lng:-112.187,  arrive:"02:30 PM",depart:"09:30 PM", note:"Hoodoos & red rock spires", pct:28,  type:"mid"   },
+  { id:"stargaze", name:"Stargazing",         short:"DARK SKY",       icon:"🌌", lat:37.491, lng:-112.172,  arrive:"10:00 PM",depart:"02:00 AM", note:"Milky Way overhead",         pct:43,  type:"mid"   },
+  { id:"mesquite", name:"Mesquite Stay",      short:"MESQUITE NV",    icon:"🏨", lat:36.806, lng:-114.067,  arrive:"Evening", depart:"Morning",  note:"Rest for the night",         pct:58,  type:"mid"   },
+  { id:"vof",      name:"Valley of Fire",     short:"VALLEY OF FIRE", icon:"🔥", lat:36.483, lng:-114.535,  arrive:"10:00 AM",depart:"01:00 PM", note:"Ancient petroglyphs",        pct:75,  type:"mid"   },
+  { id:"airport",  name:"Harry Reid Airport", short:"LAS VEGAS ✈",   icon:"✈️", lat:36.084, lng:-115.152,  arrive:"06:00 PM",depart:null,       note:"End of the road",            pct:100, type:"end"   },
+];
+
+const RAW_ROUTE = [
+  [36.1125,-115.1711],[36.17,-115.14],[36.24,-115.08],[36.32,-114.95],
+  [36.50,-114.75],[36.70,-114.50],[37.00,-114.00],[37.10,-113.80],
+  [37.20,-113.65],[37.32,-113.45],[37.40,-112.90],[37.48,-112.50],
+  [37.55,-112.20],[37.593,-112.187],[37.491,-112.172],
+  [37.30,-112.40],[37.10,-112.80],[36.90,-113.20],[36.85,-113.50],
+  [36.806,-114.067],[36.70,-114.20],[36.60,-114.35],[36.55,-114.45],
+  [36.483,-114.535],[36.40,-114.70],[36.30,-114.90],[36.20,-115.00],
+  [36.16,-115.10],[36.12,-115.14],[36.084,-115.152],
+];
+
+const BBOX = { minLat:35.8, maxLat:37.9, minLng:-115.5, maxLng:-111.8 };
+const SVG_W = 800, SVG_H = 520;
+
+function project(lat, lng) {
+  const x = ((lng - BBOX.minLng) / (BBOX.maxLng - BBOX.minLng)) * SVG_W;
+  const y = SVG_H - ((lat - BBOX.minLat) / (BBOX.maxLat - BBOX.minLat)) * SVG_H;
+  return [x, y];
+}
+
+const ROUTE_PTS = RAW_ROUTE.map(([la,ln]) => project(la,ln));
+const STOP_PTS  = STOPS.map(s => project(s.lat, s.lng));
+
+function polylineLen(pts) {
+  let d = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const dx = pts[i][0]-pts[i-1][0], dy = pts[i][1]-pts[i-1][1];
+    d += Math.sqrt(dx*dx+dy*dy);
+  }
+  return d;
+}
+
+function pointAtT(pts, t) {
+  const total = polylineLen(pts);
+  let target = t * total, acc = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const dx = pts[i][0]-pts[i-1][0], dy = pts[i][1]-pts[i-1][1];
+    const seg = Math.sqrt(dx*dx+dy*dy);
+    if (acc + seg >= target) {
+      const f = (target - acc) / seg;
+      return [pts[i-1][0]+dx*f, pts[i-1][1]+dy*f];
+    }
+    acc += seg;
+  }
+  return pts[pts.length-1];
+}
+
+function routeUpToT(pts, t) {
+  const total = polylineLen(pts);
+  let target = t * total, acc = 0;
+  const result = [pts[0]];
+  for (let i = 1; i < pts.length; i++) {
+    const dx = pts[i][0]-pts[i-1][0], dy = pts[i][1]-pts[i-1][1];
+    const seg = Math.sqrt(dx*dx+dy*dy);
+    if (acc + seg >= target) {
+      const f = (target - acc) / seg;
+      result.push([pts[i-1][0]+dx*f, pts[i-1][1]+dy*f]);
+      break;
+    }
+    acc += seg;
+    result.push(pts[i]);
+  }
+  return result;
+}
+
+function toD(pts) {
+  return pts.map((p,i) => `${i===0?'M':'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+}
+
+const TIME_MAP = [
+  [0,"DAY 1 · 08:00 AM"],[15,"DAY 1 · 10:00 AM"],[28,"DAY 1 · 02:30 PM"],
+  [43,"DAY 1 · 10:00 PM"],[52,"DAY 2 · 02:00 AM"],[58,"DAY 2 · 07:00 AM"],
+  [70,"DAY 2 · 09:30 AM"],[75,"DAY 2 · 11:00 AM"],[88,"DAY 2 · 02:00 PM"],
+  [100,"DAY 2 · 06:00 PM"],
+];
+function getTime(pct) {
+  let label = TIME_MAP[0][1];
+  for (const [p,l] of TIME_MAP) { if (pct >= p) label = l; }
+  return label;
+}
+function getActiveStop(pct) {
+  let active = STOPS[0];
+  for (const s of STOPS) { if (pct >= s.pct) active = s; }
+  return active;
+}
+
+const STARS = Array.from({length:60},(_,i)=>({
+  x:(i*137.5)%SVG_W, y:(i*89.3)%SVG_H,
+  r:0.4+((i*31)%10)*0.12, o:0.2+((i*17)%10)*0.05
+}));
+
+const TERRAIN = [
+  "M 50,400 Q 120,340 200,380 Q 280,420 320,360 Q 360,300 420,340 Q 460,380 500,320 L 500,520 L 50,520 Z",
+  "M 500,350 Q 560,300 620,340 Q 680,380 730,320 Q 770,280 800,310 L 800,520 L 500,520 Z",
+  "M 0,460 Q 80,430 160,450 Q 220,470 280,445 L 280,520 L 0,520 Z",
+];
+
+function App() {
+  const [pct, setPct] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [pulse, setPulse] = useState(false);
+  const intervalRef = useRef(null);
+  const cardRefs = useRef({});
+
+  const t = pct / 100;
+  const carPos = pointAtT(ROUTE_PTS, t);
+  const progressD = toD(routeUpToT(ROUTE_PTS, t));
+  const fullD = toD(ROUTE_PTS);
+  const activeStop = getActiveStop(pct);
+  const timeLabel = getTime(pct);
+
+  useEffect(() => {
+    setPulse(true);
+    const tid = setTimeout(() => setPulse(false), 600);
+    return () => clearTimeout(tid);
+  }, [activeStop.id]);
+
+  useEffect(() => {
+    const el = cardRefs.current[activeStop.id];
+    if (el) el.scrollIntoView({ behavior:"smooth", block:"nearest", inline:"center" });
+  }, [activeStop.id]);
+
+  const togglePlay = useCallback(() => {
+    if (playing) {
+      clearInterval(intervalRef.current);
+      setPlaying(false);
+    } else {
+      if (pct >= 100) setPct(0);
+      setPlaying(true);
+      intervalRef.current = setInterval(() => {
+        setPct(prev => {
+          if (prev >= 100) {
+            clearInterval(intervalRef.current);
+            setPlaying(false);
+            return 100;
+          }
+          return prev + 0.35;
+        });
+      }, 40);
+    }
+  }, [playing, pct]);
+
+  useEffect(() => () => clearInterval(intervalRef.current), []);
+
+  const handleSlider = (e) => {
+    clearInterval(intervalRef.current);
+    setPlaying(false);
+    setPct(Number(e.target.value));
+  };
+
+  const jumpToStop = (stop) => {
+    clearInterval(intervalRef.current);
+    setPlaying(false);
+    setPct(stop.pct);
+  };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",width:"100%",background:"#0B0D12",color:"#E4E8F0",overflow:"hidden",fontFamily:"system-ui,sans-serif"}}>
+
+      {/* HEADER */}
+      <div style={{flexShrink:0,display:"flex",alignItems:"center",gap:"12px",padding:"10px 14px",background:"#13161F",borderBottom:"1px solid rgba(245,166,35,0.15)"}}>
+        <div style={{flexShrink:0}}>
+          <div style={{fontWeight:800,fontSize:"15px",letterSpacing:"2px",color:"#F5A623",lineHeight:1}}>DESERT ODYSSEY</div>
+          <div style={{fontSize:"8px",color:"#4a5568",letterSpacing:"1.5px",fontFamily:"monospace",marginTop:"1px"}}>LAS VEGAS LOOP · 2 DAYS</div>
+        </div>
+        <div style={{flex:1,display:"flex",flexDirection:"column",gap:"4px",minWidth:0}}>
+          <div style={{fontFamily:"monospace",fontSize:"10px",color:"#F5A623",textAlign:"center",letterSpacing:"1px"}}>{timeLabel}</div>
+          <div style={{position:"relative",height:"6px",borderRadius:"3px",background:"#2a3045"}}>
+            <div style={{position:"absolute",top:0,left:0,height:"100%",borderRadius:"3px",background:"linear-gradient(90deg,#F5A623,#FF6B35)",width:`${pct}%`,transition:"width 0.05s",pointerEvents:"none"}}/>
+            <input type="range" min="0" max="100" step="0.1" value={pct} onChange={handleSlider}
+              style={{position:"absolute",top:"-5px",left:0,width:"100%",opacity:0,cursor:"pointer",height:"16px",margin:0}}/>
+          </div>
+        </div>
+        <button onClick={togglePlay}
+          style={{flexShrink:0,width:"36px",height:"36px",borderRadius:"50%",background:"#F5A623",border:"none",color:"#0B0D12",fontSize:"15px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 12px rgba(245,166,35,0.4)"}}>
+          {playing ? "⏸" : "▶"}
+        </button>
+      </div>
+
+      {/* MAP */}
+      <div style={{flex:1,position:"relative",overflow:"hidden",minHeight:0}}>
+        <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} style={{width:"100%",height:"100%",display:"block"}} preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <radialGradient id="bg" cx="50%" cy="50%" r="70%">
+              <stop offset="0%" stopColor="#1a1f2e"/>
+              <stop offset="100%" stopColor="#0a0c12"/>
+            </radialGradient>
+            <radialGradient id="cg" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#F5A623" stopOpacity="0.6"/>
+              <stop offset="100%" stopColor="#F5A623" stopOpacity="0"/>
+            </radialGradient>
+            <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <filter id="sglow"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#F5A623"/>
+              <stop offset="100%" stopColor="#FF6B35"/>
+            </linearGradient>
+          </defs>
+
+          <rect width={SVG_W} height={SVG_H} fill="url(#bg)"/>
+
+          {STARS.map((s,i) => <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="white" opacity={s.o}/>)}
+
+          {TERRAIN.map((d,i) => (
+            <path key={i} d={d} fill={`rgba(${i===0?'40,28,18':i===1?'35,22,14':'28,35,20'},0.5)`}/>
+          ))}
+
+          {[1,2,3,4].map(i => <line key={`h${i}`} x1="0" y1={i*SVG_H/5} x2={SVG_W} y2={i*SVG_H/5} stroke="rgba(255,255,255,0.03)" strokeWidth="1"/>)}
+          {[1,2,3,4,5,6].map(i => <line key={`v${i}`} x1={i*SVG_W/7} y1="0" x2={i*SVG_W/7} y2={SVG_H} stroke="rgba(255,255,255,0.03)" strokeWidth="1"/>)}
+
+          <text x="100" y="300" style={{fontSize:"11px",fill:"rgba(255,255,255,0.06)",fontFamily:"monospace",letterSpacing:"3px"}}>NEVADA</text>
+          <text x="550" y="180" style={{fontSize:"11px",fill:"rgba(255,255,255,0.06)",fontFamily:"monospace",letterSpacing:"3px"}}>UTAH</text>
+          <text x="670" y="420" style={{fontSize:"11px",fill:"rgba(255,255,255,0.06)",fontFamily:"monospace",letterSpacing:"3px"}}>ARIZONA</text>
+
+          <path d={fullD} fill="none" stroke="rgba(245,166,35,0.12)" strokeWidth="2.5" strokeDasharray="8 6"/>
+
+          {pct > 0 && <>
+            <path d={progressD} fill="none" stroke="rgba(245,166,35,0.25)" strokeWidth="8" strokeLinecap="round" filter="url(#sglow)"/>
+            <path d={progressD} fill="none" stroke="url(#rg)" strokeWidth="3" strokeLinecap="round" filter="url(#glow)"/>
+          </>}
+
+          {STOPS.map((stop, i) => {
+            const [sx, sy] = STOP_PTS[i];
+            const visited = pct >= stop.pct;
+            const isActive = activeStop.id === stop.id;
+            const color = stop.type==="start" ? "#4ADE80" : stop.type==="end" ? "#FF6B35" : "#F5A623";
+            return (
+              <g key={stop.id} style={{cursor:"pointer"}} onClick={() => jumpToStop(stop)}>
+                {isActive && (
+                  <circle cx={sx} cy={sy} r="18" fill={color} opacity="0.15">
+                    <animate attributeName="r" values="12;22;12" dur="2s" repeatCount="indefinite"/>
+                    <animate attributeName="opacity" values="0.2;0;0.2" dur="2s" repeatCount="indefinite"/>
+                  </circle>
+                )}
+                <circle cx={sx} cy={sy} r="7" fill={visited?color:"#1e2535"} stroke={color} strokeWidth="2"
+                  opacity={visited?1:0.5} filter={isActive?"url(#glow)":"none"}/>
+                <text x={sx} y={sy-12} textAnchor="middle" style={{fontSize:"13px",userSelect:"none"}}>{stop.icon}</text>
+                <text x={sx+10} y={sy+4} style={{fontSize:"8px",fill:visited?"#E4E8F0":"#4a5568",fontFamily:"monospace",letterSpacing:"0.5px",userSelect:"none"}}>{stop.short}</text>
+              </g>
+            );
+          })}
+
+          <g transform={`translate(${carPos[0]},${carPos[1]})`}>
+            <circle cx="0" cy="0" r="22" fill="url(#cg)" opacity={pulse?1:0.7}/>
+            <circle cx="0" cy="0" r="14" fill="rgba(245,166,35,0.15)" stroke="#F5A623" strokeWidth="1.5"/>
+            <text x="0" y="6" textAnchor="middle" style={{fontSize:"16px",userSelect:"none",filter:"drop-shadow(0 1px 4px rgba(0,0,0,0.8))"}}>🚗</text>
+          </g>
+        </svg>
+
+        {/* Badge */}
+        <div style={{position:"absolute",top:"10px",left:"10px",background:"rgba(11,13,18,0.9)",border:"1px solid rgba(245,166,35,0.2)",borderRadius:"8px",padding:"7px 11px",pointerEvents:"none"}}>
+          <div style={{fontFamily:"monospace",fontWeight:"700",fontSize:"10px",color:"#E4E8F0",letterSpacing:"1.5px"}}>{activeStop.name.toUpperCase()}</div>
+          <div style={{fontFamily:"monospace",fontSize:"9px",color:"#F5A623",marginTop:"2px"}}>{activeStop.icon} {activeStop.arrive ? `ARR ${activeStop.arrive}` : `DEP ${activeStop.depart}`}</div>
+        </div>
+
+        {/* Progress */}
+        <div style={{position:"absolute",top:"10px",right:"10px",background:"rgba(11,13,18,0.9)",border:"1px solid rgba(245,166,35,0.2)",borderRadius:"8px",padding:"7px 11px",textAlign:"center",pointerEvents:"none"}}>
+          <div style={{color:"#7A8499",fontSize:"8px",letterSpacing:"1px",fontFamily:"monospace"}}>PROGRESS</div>
+          <div style={{color:"#F5A623",fontSize:"16px",fontWeight:"700",fontFamily:"monospace"}}>{Math.round(pct)}%</div>
+          <div style={{color:"#4a5568",fontSize:"8px",fontFamily:"monospace"}}>~{Math.round(pct*16.8)} mi</div>
+        </div>
+      </div>
+
+      {/* BOTTOM CARDS */}
+      <div style={{flexShrink:0,background:"#13161F",borderTop:"1px solid rgba(245,166,35,0.15)",paddingBottom:"env(safe-area-inset-bottom,8px)"}}>
+        <div style={{fontFamily:"monospace",fontSize:"9px",letterSpacing:"2px",color:"#4a5568",padding:"8px 14px 6px"}}>TRIP ITINERARY</div>
+        <div style={{display:"flex",gap:"10px",overflowX:"auto",padding:"0 14px 8px",WebkitOverflowScrolling:"touch"}}>
+          {STOPS.map(stop => {
+            const isActive = activeStop.id === stop.id;
+            const visited = pct >= stop.pct;
+            return (
+              <div key={stop.id} ref={el => cardRefs.current[stop.id] = el} onClick={() => jumpToStop(stop)}
+                style={{flexShrink:0,width:"125px",background:"#1C2030",border:`1px solid ${isActive?"#F5A623":"rgba(255,255,255,0.06)"}`,borderRadius:"10px",padding:"10px 11px",cursor:"pointer",position:"relative",overflow:"hidden",boxShadow:isActive?"0 0 18px rgba(245,166,35,0.3)":"none",transform:isActive?"translateY(-2px)":"none",transition:"all 0.25s",opacity:visited&&!isActive?0.65:1}}>
+                <div style={{position:"absolute",top:0,left:0,right:0,height:"2px",background:"linear-gradient(90deg,#F5A623,#FF6B35)",opacity:isActive?1:0,transition:"opacity 0.3s"}}/>
+                <span style={{fontSize:"17px",display:"block",marginBottom:"4px"}}>{stop.icon}</span>
+                <div style={{fontFamily:"monospace",fontWeight:"700",fontSize:"10px",color:"#E4E8F0",letterSpacing:"0.5px",lineHeight:1.3,marginBottom:"5px"}}>{stop.name}</div>
+                <div style={{fontFamily:"monospace",fontSize:"9px",color:"#7A8499",lineHeight:1.7}}>
+                  {stop.arrive && <span><span style={{color:"#F5A623",marginRight:"3px",fontSize:"8px"}}>ARR</span>{stop.arrive}<br/></span>}
+                  {stop.depart && <span><span style={{color:"#F5A623",marginRight:"3px",fontSize:"8px"}}>DEP</span>{stop.depart}</span>}
+                </div>
+                <div style={{fontSize:"8px",color:"#3a4455",marginTop:"4px",lineHeight:1.4}}>{stop.note}</div>
+                {visited && !isActive && <div style={{position:"absolute",top:"8px",right:"9px",color:"#4ADE80",fontSize:"11px",fontWeight:"700"}}>✓</div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
