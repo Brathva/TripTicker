@@ -47,6 +47,7 @@ const { useState, useEffect, useRef, useCallback } = React;
 
 const STOPS = [
   { id:"paris",    name:"Paris Las Vegas",    short:"PARIS LV",       icon:"🗼", lat:36.1125,lng:-115.1711, arrive:null,      depart:"08:00 AM", note:"Start your engines",       pct:0,   type:"start" },
+  // Increased to 32% to delay the focus until the car is at the hoodoos
   { id:"bryce",    name:"Bryce Canyon",       short:"BRYCE CANYON",   icon:"🏜️", lat:37.593, lng:-112.187,  arrive:"02:30 PM",depart:"09:30 PM", note:"Hoodoos & red rock spires", pct:32,  type:"mid" },
   { id:"stargaze", name:"Stargazing",         short:"DARK SKY",       icon:"🌌", lat:37.491, lng:-112.172,  arrive:"10:00 PM",depart:"02:00 AM", note:"Milky Way overhead",         pct:48,  type:"mid" },
   { id:"mesquite", name:"Mesquite Stay",      short:"MESQUITE NV",    icon:"🏨", lat:36.806, lng:-114.067,  arrive:"Evening", depart:"Morning",  note:"Rest for the night",         pct:62,  type:"mid" },
