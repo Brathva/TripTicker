@@ -1,563 +1,132 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
-
   <meta charset="UTF-8" />
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
   <title>Vegas → Bryce → Valley of Fire Adventure</title>
-
   <style>
-
     * {
-
       box-sizing: border-box;
-
     }
 
     body {
-
       margin: 0;
-
       font-family: 'Trebuchet MS', sans-serif;
-
       background: linear-gradient(to bottom, #fff4d6, #ffe8f0);
-
       color: #333;
-
       overflow-x: hidden;
-
     }
 
+    /* Hero Section */
     .hero {
-
-      text-align: center;
-
-      padding: 40px 20px;
-
-      background: linear-gradient(135deg, #ffcc70, #ff8177);
-
-      color: white;
-
-      border-bottom-left-radius: 40px;
-
-      border-bottom-right-radius: 40px;
-
-      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-
       position: relative;
-
+      text-align: center;
+      padding: 40px 20px;
+      background: linear-gradient(135deg, #ffcc70, #ff8177);
+      color: white;
+      border-bottom-left-radius: 40px;
+      border-bottom-right-radius: 40px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
     }
 
     .hero h1 {
-
       font-size: 3rem;
-
       margin-bottom: 10px;
-
     }
 
     .hero p {
-
       font-size: 1.2rem;
-
     }
 
-    /* Floating Car */
-
+    /* Floating Car Animation */
     .floating-car {
-
       position: absolute;
-
       bottom: -20px;
-
       left: 10%;
-
       font-size: 2rem;
-
       animation: drive 6s infinite alternate ease-in-out;
-
     }
 
     @keyframes drive {
-
       from { transform: translateX(0px); }
-
       to { transform: translateX(220px); }
-
     }
 
     /* Sticky Route Tracker */
-
     .tracker {
-
       position: sticky;
-
       top: 0;
-
       z-index: 999;
-
-      background: rgba(255,255,255,0.92);
-
-      backdrop-filter: blur(10px);
-
       display: flex;
-
       justify-content: center;
-
       gap: 12px;
-
       padding: 14px;
-
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     }
 
     .stop {
-
       padding: 10px 18px;
-
       border-radius: 999px;
-
       background: white;
-
-      box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
       font-weight: bold;
-
       transition: 0.3s;
-
     }
 
     .stop.active {
-
       background: #ff7b54;
-
       color: white;
-
       transform: scale(1.08);
-
     }
 
+    /* Main Container */
     .container {
-
       max-width: 1000px;
-
       margin: auto;
-
       padding: 30px 20px 60px;
-
     }
 
+    /* Day Cards */
     .day-card {
-
-      background: white;
-
-      border-radius: 30px;
-
-      padding: 25px;
-
-      margin-bottom: 35px;
-
-      box-shadow: 0 10px 25px rgba(0,0,0,0.12);
-
       position: relative;
-
+      background: white;
+      border-radius: 30px;
+      padding: 25px;
+      margin-bottom: 35px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
       overflow: hidden;
-
       transition: transform 0.3s;
-
     }
 
     .day-card:hover {
-
       transform: translateY(-6px);
-
     }
 
     .day-card::before {
-
       content: "✨";
-
       position: absolute;
-
       right: 20px;
-
       top: 15px;
-
       font-size: 2rem;
-
       opacity: 0.4;
-
     }
 
     h2 {
-
       margin-top: 0;
-
       color: #ff6b6b;
-
       font-size: 2rem;
-
     }
 
     ul {
-
       line-height: 1.8;
-
       padding-left: 22px;
-
     }
 
     .highlight {
-
       background: #fff6c7;
-
       padding: 12px 16px;
-
       border-radius: 15px;
-
       margin-top: 15px;
-
-      font-weight: bold;
-
-    }
-
-    /* Cartoon Route */
-
-    .route-map {
-
-      margin: 30px auto;
-
-      width: 90%;
-
-      max-width: 900px;
-
-      position: relative;
-
-      height: 120px;
-
-    }
-
-    .road {
-
-      position: absolute;
-
-      top: 50px;
-
-      left: 5%;
-
-      width: 90%;
-
-      height: 12px;
-
-      background: repeating-linear-gradient(
-
-        90deg,
-
-        #444,
-
-        #444 20px,
-
-        #666 20px,
-
-        #666 40px
-
-      );
-
-      border-radius: 999px;
-
-    }
-
-    .route-stop {
-
-      position: absolute;
-
-      top: 25px;
-
-      transform: translateX(-50%);
-
-      text-align: center;
-
-      font-size: 0.95rem;
-
-      font-weight: bold;
-
-    }
-
-    .route-stop span {
-
-      display: block;
-
-      margin-top: 10px;
-
-      background: white;
-
-      padding: 8px 12px;
-
-      border-radius: 999px;
-
-      box-shadow: 0 3px 8px rgba(0,0,0,0.1);
-
-    }
-
-    .route-stop:nth-child(2) { left: 10%; }
-
-    .route-stop:nth-child(3) { left: 40%; }
-
-    .route-stop:nth-child(4) { left: 70%; }
-
-    .route-stop:nth-child(5) { left: 90%; }
-
-    /* Night Mode Bryce */
-
-    .night {
-
-      background: linear-gradient(to bottom, #0b1020, #111827);
-
-      color: white;
-
-    }
-
-    .night h2 {
-
-      color: #ffd166;
-
-    }
-
-    .night .highlight {
-
-      background: rgba(255,255,255,0.12);
-
-      color: #fff;
-
-    }
-
-    .stars {
-
-      position: absolute;
-
-      inset: 0;
-
-      pointer-events: none;
-
-      background-image:
-
-        radial-gradient(white 1px, transparent 1px),
-
-        radial-gradient(white 1px, transparent 1px);
-
-      background-size: 40px 40px, 60px 60px;
-
-      opacity: 0.15;
-
-    }
-
-    /* Footer */
-
-    .footer {
-
-      text-align: center;
-
-      padding: 25px;
-
-      color: #666;
-
-      font-size: 0.95rem;
-
-    }
-
-    @media (max-width: 768px) {
-
-      .hero h1 {
-
-        font-size: 2.2rem;
-
-      }
-
-      .tracker {
-
-        overflow-x: auto;
-
-        justify-content: flex-start;
-
-      }
-
-      .stop {
-
-        white-space: nowrap;
-
-      }
-
-    }
-
-  </style>
-
-</head>
-
-<body>
-
-  <div class="hero">
-
-    <h1>🏜️ Vegas → Bryce → Valley of Fire</h1>
-
-    <p>Cartoon-style Southwest road trip adventure 🌌🔥</p>
-
-    <div class="floating-car">🚗</div>
-
-  </div>
-
-  <!-- Sticky Tracker -->
-
-  <div class="tracker">
-
-    <div class="stop active">🎰 Vegas</div>
-
-    <div class="stop">🌄 Bryce</div>
-
-    <div class="stop">🏨 Mesquite</div>
-
-    <div class="stop">🔥 Fire Valley</div>
-
-    <div class="stop">✈️ Airport</div>
-
-  </div>
-
-  <!-- Cartoon Route -->
-
-  <div class="route-map">
-
-    <div class="road"></div>
-
-    <div class="route-stop">🎰<span>Vegas</span></div>
-
-    <div class="route-stop">🌌<span>Bryce</span></div>
-
-    <div class="route-stop">🏨<span>Mesquite</span></div>
-
-    <div class="route-stop">🔥<span>Fire Valley</span></div>
-
-  </div>
-
-  <div class="container">
-
-    <div class="day-card">
-
-      <h2>🌄 Day 1 — Vegas to Bryce Canyon</h2>
-
-      <ul>
-
-        <li>Leave Paris Las Vegas around 8–10 AM</li>
-
-        <li>Optional coffee stop at St. George ☕</li>
-
-        <li>Quick scenic stop at Red Canyon 📸</li>
-
-        <li>Check in at Clear Sky Resorts Bryce Canyon 🏕️</li>
-
-        <li>Sunset at Bryce Canyon 🌅</li>
-
-        <li>Late-night stargazing 🌌✨</li>
-
-      </ul>
-
-      <div class="highlight">
-
-        ⭐ Best Stargazing: 10 PM – 2 AM
-
-      </div>
-
-    </div>
-
-    <div class="day-card night">
-
-      <div class="stars"></div>
-
-      <h2>🌌 Bryce Stargazing Experience</h2>
-
-      <ul>
-
-        <li>Milky Way visibility is incredible here ✨</li>
-
-        <li>Bring tripod + warm jacket 🧥</li>
-
-        <li>Use night mode for photography 📷</li>
-
-        <li>Minimal light pollution 🌠</li>
-
-      </ul>
-
-      <div class="highlight">
-
-        🌙 Bryce Canyon is one of the best dark-sky parks in the USA.
-
-      </div>
-
-    </div>
-
-    <div class="day-card">
-
-      <h2>🥾 Day 2 — Bryce to Mesquite</h2>
-
-      <ul>
-
-        <li>Sunrise at Sunrise Point 🌞</li>
-
-        <li>Queen’s Garden + Navajo Loop 🥾</li>
-
-        <li>Explore hoodoos and viewpoints 🧡</li>
-
-        <li>Drive to Mesquite 🚗</li>
-
-        <li>Relax at Holiday Inn Resort 🏨</li>
-
-      </ul>
-
-      <div class="highlight">
-
-        🚗 Approx drive: 4.5–5 hrs with scenic stops
-
-      </div>
-
-    </div>
-
-    <div class="day-card">
-
-      <h2>🔥 Day 3 — Valley of Fire & Flight</h2>
-
-      <ul>
-
-        <li>Leave early around 6:30–7 AM ⏰</li>
-
-        <li>Visit Elephant Rock 🐘</li>
-
-        <li>Explore Fire Wave 🌊🔥</li>
-
-        <li>Rainbow Vista & Seven Sisters 🌈</li>
-
-        <li>Drive back to airport ✈️</li>
-
-      </ul>
-
-      <div class="highlight">
-
-        💧 Carry LOTS of water. Desert heat gets intense!
-
-      </div>
-
-    </div>
-
-  </div>
-
-  <div class="footer">
-
-    Made for an epic Southwest USA adventure 🌵🚘✨
-
-  </div>
-
-</body>
-
-</html>
+      font-weight: bold
